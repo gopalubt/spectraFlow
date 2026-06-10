@@ -1,0 +1,21 @@
+<nav class="navbar">
+  <a class="navbar-brand" routerLink="/designer">
+    <span class="brand-icon">⬡</span>
+    <span class="brand-name">SpectraFlow</span>
+  </a>
+
+  <div class="navbar-actions">
+    <ng-container *ngIf="currentUser; else guestActions">
+      <span class="user-email">{{ currentUser.email }}</span>
+      <button class="btn btn-outline" (click)="signOut()">Sign Out</button>
+    </ng-container>
+    <ng-template #guestActions>
+      <a class="btn btn-outline" routerLink="/login">Sign In</a>
+      <a class="btn btn-primary" routerLink="/login" [queryParams]="{ mode: 'signup' }">Sign Up</a>
+    </ng-template>
+  </div>
+</nav>
+
+<main class="main-content">
+  <router-outlet></router-outlet>
+</main>

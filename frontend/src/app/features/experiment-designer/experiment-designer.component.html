@@ -1,0 +1,281 @@
+<div class="designer-layout">
+  <!-- LEFT PANEL: Input Form -->
+  <aside class="panel panel-left">
+    <h2 class="panel-title">Experiment Designer</h2>
+
+    <form [formGroup]="form" (ngSubmit)="generate()">
+      <!-- Section: Sequence Input -->
+      <section class="form-section">
+        <h3 class="section-title">Protein Sequence</h3>
+
+        <div class="field">
+          <label for="proteinName">Protein Name (optional)</label>
+          <input id="proteinName" type="text" formControlName="proteinName"
+            placeholder="e.g. BSA, Lysozyme" />
+        </div>
+
+        <div class="field">
+          <label for="fasta">FASTA Sequence <span class="required">*</span></label>
+          <textarea id="fasta" formControlName="fasta" rows="8"
+            placeholder=">sp|P12345|PROT_HUMAN Protein name&#10;MKTAYIAKQRQISFVKSHFSRQ..."></textarea>
+          <small class="hint">Paste a FASTA-formatted sequence or plain amino acid sequence.</small>
+        </div>
+      </section>
+
+      <!-- Section: Denaturant -->
+      <section class="form-section">
+        <h3 class="section-title">Denaturant</h3>
+
+        <div class="field">
+          <label>Denaturant Type</label>
+          <div class="radio-group">
+            <label class="radio-label">
+              <input type="radio" formControlName="denaturantType" value="urea" />
+              Urea (0–8 M)
+            </label>
+            <label class="radio-label">
+              <input type="radio" formControlName="denaturantType" value="gdnhcl" />
+              GdnHCl (0–6 M)
+            </label>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="stepSize">Step Size (M)</label>
+          <input id="stepSize" type="number" formControlName="stepSize"
+            min="0.1" max="2" step="0.1" />
+        </div>
+      </section>
+
+      <!-- Section: Experiment Parameters -->
+      <section class="form-section">
+        <h3 class="section-title">Experiment Parameters</h3>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="cuvVolumeUl">Cuvette Volume (μL)</label>
+            <input id="cuvVolumeUl" type="number" formControlName="cuvVolumeUl" min="100" />
+          </div>
+          <div class="field">
+            <label for="stockMultiplier">Stock Multiplier (×)</label>
+            <input id="stockMultiplier" type="number" formControlName="stockMultiplier" min="2" />
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="replicates">Replicates</label>
+            <input id="replicates" type="number" formControlName="replicates" min="1" />
+          </div>
+          <div class="field">
+            <label for="safetyMargin">Safety Margin (%)</label>
+            <input id="safetyMargin" type="number" formControlName="safetyMargin"
+              min="0" max="1" step="0.05" />
+            <small class="hint">e.g. 0.2 = 20% extra stock</small>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Protein Form</label>
+          <div class="radio-group">
+            <label class="radio-label">
+              <input type="radio" formControlName="proteinForm" value="powder" />
+              Lyophilised powder
+            </label>
+            <label class="radio-label">
+              <input type="radio" formControlName="proteinForm" value="solution" />
+              Solution
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <div *ngIf="errorMsg" class="error-banner">{{ errorMsg }}</div>
+
+      <button type="submit" class="btn-generate" [disabled]="loading || form.invalid">
+        {{ loading ? 'Calculating…' : 'Generate Protocol' }}
+      </button>
+    </form>
+  </aside>
+
+  <!-- RIGHT PANEL: Results -->
+  <main class="panel panel-right" *ngIf="protocol; else emptyState">
+
+    <div class="results-header">
+      <h2>
+        {{ protocol.proteinName || 'Unnamed Protein' }}
+        <span class="seq-length">{{ protocol.seqLength }} aa</span>
+      </h2>
+      <button class="btn-save" (click)="save()" [disabled]="saving || !authService.isLoggedIn()">
+        {{ saving ? 'Saving…' : 'Save Protocol' }}
+      </button>
+    </div>
+
+    <div *ngIf="saveSuccess" class="save-success">{{ saveSuccess }}</div>
+    <div *ngIf="!authService.isLoggedIn()" class="save-hint">
+      Sign in to save protocols to your account.
+    </div>
+
+    <!-- Section A: Sequence Composition -->
+    <section class="result-section">
+      <h3 class="result-section-title">A — Sequence Composition &amp; Constants</h3>
+      <div class="stats-grid">
+        <div class="stat">
+          <span class="stat-label">Trp (W)</span>
+          <span class="stat-value">{{ protocol.trpCount }}</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Tyr (Y)</span>
+          <span class="stat-value">{{ protocol.tyrCount }}</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Phe (F)</span>
+          <span class="stat-value">{{ protocol.pheCount }}</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Cys (C)</span>
+          <span class="stat-value">{{ protocol.cysCount }}</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Disulfide bonds</span>
+          <span class="stat-value">{{ protocol.disulfideBonds }}</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">MW (Da)</span>
+          <span class="stat-value">{{ formatNum(protocol.molecularWeight, 1) }}</span>
+        </div>
+        <div class="stat highlight">
+          <span class="stat-label">ε₂₈₀ (M⁻¹cm⁻¹)</span>
+          <span class="stat-value">{{ protocol.epsilon }}</span>
+        </div>
+      </div>
+      <p class="formula-note">
+        Pace (1995): ε = ({{ protocol.trpCount }} × 5500) + ({{ protocol.tyrCount }} × 1490) + ({{ protocol.disulfideBonds }} × 125)
+      </p>
+    </section>
+
+    <!-- Section B: Concentration & Stock Preparation -->
+    <section class="result-section">
+      <h3 class="result-section-title">B — Concentration &amp; Stock Preparation</h3>
+      <div class="stats-grid">
+        <div class="stat">
+          <span class="stat-label">Working conc. (μM)</span>
+          <span class="stat-value">{{ formatNum(protocol.workingConcUm, 3) }}</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Safe range (μM)</span>
+          <span class="stat-value">{{ formatNum(protocol.safeMinUm, 3) }}–{{ formatNum(protocol.safeMaxUm, 3) }}</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Stock conc. (μM)</span>
+          <span class="stat-value">{{ formatNum(protocol.stockConcUm, 3) }}</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Vol / tube (μL)</span>
+          <span class="stat-value">{{ formatNum(protocol.volPerTubeUl, 2) }}</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Total tubes</span>
+          <span class="stat-value">{{ protocol.totalTubes }}</span>
+        </div>
+        <div class="stat highlight">
+          <span class="stat-label">Stock volume (mL)</span>
+          <span class="stat-value">{{ formatNum(protocol.totalStockVolMl, 1) }}</span>
+        </div>
+        <div class="stat highlight" *ngIf="protocol.proteinForm === 'powder'">
+          <span class="stat-label">Mass to weigh (mg)</span>
+          <span class="stat-value">{{ formatNum(protocol.massMg, 3) }}</span>
+        </div>
+      </div>
+      <p class="formula-note">
+        Beer-Lambert: target A = 0.2; safe range A = 0.1–0.8 AU.
+        Stock prepared at {{ protocol.stockMultiplier }}× working concentration.
+      </p>
+    </section>
+
+    <!-- Section C: Predicted Unfolding -->
+    <section class="result-section">
+      <h3 class="result-section-title">C — Predicted Unfolding &amp; Emission</h3>
+      <div class="stats-grid">
+        <div class="stat">
+          <span class="stat-label">Predicted Cm range (M)</span>
+          <span class="stat-value">{{ formatNum(protocol.predCmLow, 1) }}–{{ formatNum(protocol.predCmHigh, 1) }}</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Native emission peak</span>
+          <span class="stat-value">{{ protocol.nativeEmissionNm }} nm</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Unfolded emission peak</span>
+          <span class="stat-value">{{ protocol.unfoldedEmissionNm }} nm</span>
+        </div>
+        <div class="stat highlight">
+          <span class="stat-label">Red shift on unfolding</span>
+          <span class="stat-value">+{{ protocol.redShift }} nm</span>
+        </div>
+      </div>
+      <p class="formula-note">
+        Cm heuristic based on {{ protocol.disulfideBonds }} disulfide bond(s).
+        Emission predictions: Lakowicz (2006), Ch. 16.
+        Focus window: {{ formatNum(protocol.predCmLow - 0.5, 1) }}–{{ formatNum(protocol.predCmHigh + 0.5, 1) }} M {{ protocol.denaturantType === 'urea' ? 'urea' : 'GdnHCl' }}.
+      </p>
+    </section>
+
+    <!-- Section D: Experiment Grid -->
+    <section class="result-section">
+      <h3 class="result-section-title">D — Experiment Grid</h3>
+      <p class="grid-summary">
+        {{ protocol.experimentGrid.length }} steps &nbsp;·&nbsp;
+        <span class="focus-count">{{ focusSteps().length }} focus</span> &nbsp;·&nbsp;
+        <span class="caution-count">{{ cautionSteps().length }} caution</span>
+      </p>
+
+      <div class="table-wrapper">
+        <table class="grid-table">
+          <thead>
+            <tr>
+              <th>{{ protocol.denaturantType === 'urea' ? 'Urea' : 'GdnHCl' }} (M)</th>
+              <th>Flag</th>
+              <th>Protein vol (μL)</th>
+              <th>Denaturant vol (μL)</th>
+              <th>Expected signal</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let step of protocol.experimentGrid" [class]="'row-' + step.flag">
+              <td>{{ step.concentration.toFixed(2) }}</td>
+              <td><span [class]="flagClass(step.flag)">{{ step.flag }}</span></td>
+              <td>{{ step.proteinVol }}</td>
+              <td>{{ step.denaturantVol }}</td>
+              <td>{{ step.expectedSignal }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Empty state when no protocol generated yet -->
+  <ng-template #emptyState>
+    <main class="panel panel-right empty-state">
+      <div class="empty-content">
+        <div class="empty-icon">⬡</div>
+        <h2>Your protocol will appear here</h2>
+        <p>
+          Paste a FASTA sequence on the left and click
+          <strong>Generate Protocol</strong> to calculate
+          extinction coefficients, working concentrations,
+          and a full experiment grid.
+        </p>
+        <div class="example-proteins">
+          <h4>Try with a well-characterised protein:</h4>
+          <ul>
+            <li><strong>BSA (P02769)</strong> — Trp=2, Tyr=20, Cys=35, ε≈42925</li>
+            <li><strong>Lysozyme (P00698)</strong> — Trp=6, Tyr=3, Cys=8, ε≈37360</li>
+          </ul>
+        </div>
+      </div>
+    </main>
+  </ng-template>
+</div>
